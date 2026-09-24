@@ -1,0 +1,15 @@
+This repository includes files derived from third-party projects.
+
+internal/infrastructure/resource/data/char.def
+internal/infrastructure/resource/data/unk.def
+internal/infrastructure/resource/data/rewrite.def
+testdata/system.dic.test
+    From Sudachi / sudachi.rs by Works Applications Co., Ltd.
+    https://github.com/WorksApplications/sudachi.rs
+    Licensed under the Apache License, Version 2.0.
+
+testdata/golden/*
+    From ikawaha/sudachi.go (test corpora and outputs of sudachi.rs).
+    https://github.com/ikawaha/sudachi.go
+    Licensed under the Apache License, Version 2.0.
+    The corpora are "坊っちゃん" by 夏目漱石 and "赤い蝋燭と人魚" by 小川未明 (public domain).

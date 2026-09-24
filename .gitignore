@@ -1,0 +1,4 @@
+*.dic
+!testdata/*.dic.test
+/sudachin
+coverage.out
