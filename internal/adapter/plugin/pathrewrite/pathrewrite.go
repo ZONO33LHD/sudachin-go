@@ -133,7 +133,8 @@ func (k *JoinKatakanaOOV) Rewrite(t *text.Text, in []tokenize.PathNode) ([]token
 	next := 0 // in[next:] はまだ out に出力していない
 	for i := 0; i < len(in); i++ {
 		n := in[i]
-		if !(n.WordID.IsOOV() || n.End-n.Begin < k.minLength) || !isKatakana(n) {
+		trigger := n.WordID.IsOOV() || n.End-n.Begin < k.minLength
+		if !trigger || !isKatakana(n) {
 			continue
 		}
 		begin := i

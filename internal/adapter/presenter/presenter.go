@@ -74,14 +74,16 @@ func (w *Writer) Write(ms []morpheme.Morpheme) error {
 		return json.MarshalEncode(w.json, toJSON(ms))
 	default:
 		for _, m := range ms {
-			w.writeLine(m)
+			if err := w.writeLine(m); err != nil {
+				return err
+			}
 		}
 		_, err := w.w.WriteString("EOS\n")
 		return err
 	}
 }
 
-func (w *Writer) writeLine(m morpheme.Morpheme) {
+func (w *Writer) writeLine(m morpheme.Morpheme) error {
 	fields := []string{m.Surface, m.POS.String(), m.NormalizedForm}
 	if w.format == All {
 		fields = append(fields, m.DictionaryForm, m.ReadingForm, strconv.Itoa(m.DictionaryID), formatIDs(m.SynonymGroupIDs))
@@ -89,8 +91,10 @@ func (w *Writer) writeLine(m morpheme.Morpheme) {
 			fields = append(fields, "(OOV)")
 		}
 	}
-	w.w.WriteString(strings.Join(fields, "\t"))
-	w.w.WriteByte('\n')
+	if _, err := w.w.WriteString(strings.Join(fields, "\t")); err != nil {
+		return err
+	}
+	return w.w.WriteByte('\n')
 }
 
 func formatIDs(ids []uint32) string {

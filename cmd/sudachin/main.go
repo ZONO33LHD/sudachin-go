@@ -94,12 +94,12 @@ func run(args []string, stdin io.Reader, stdout io.Writer) (err error) {
 	return errors.Join(err, w.Flush())
 }
 
-func analyzeFile(a *sudachin.Analyzer, path string, w *presenter.Writer, mode sudachin.Mode) error {
+func analyzeFile(a *sudachin.Analyzer, path string, w *presenter.Writer, mode sudachin.Mode) (err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { err = errors.Join(err, f.Close()) }()
 	return analyzeLines(a, f, w, mode)
 }
 
