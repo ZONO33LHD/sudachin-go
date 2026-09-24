@@ -65,16 +65,17 @@ internal/
 ## テスト
 
 ```sh
-go test -race ./...
+make check    # gofmt, go vet (darwin/windows), golangci-lint, staticcheck, govulncheck, go test -race
 
 # sudachi.rs との互換性テスト (SudachiDict core 20250515 が必要)
-SUDACHIN_TEST_DICT=/path/to/20250515/system_core.dic go test -run Golden .
+make golden SUDACHIN_TEST_DICT=/path/to/20250515/system_core.dic
 
 # ファジング
 go test ./internal/usecase/tokenize -run '^$' -fuzz FuzzTokenize
 ```
 
-`gofmt` を直接呼ぶ場合は、PATH 上の古い gofmt ではメソッドの型パラメータを解釈できないため `go fmt ./...` か `$(go env GOROOT)/bin/gofmt` を使ってください。
+lint ツールの版は `tools/go.mod` で固定しています (本体の `go.mod` には入りません)。
+`gofmt` は、PATH 上の古いものではメソッドの型パラメータを解釈できないため、Makefile ではツールチェーン同梱の `$(go env GOROOT)/bin/gofmt` を使います。
 
 ## 未対応
 

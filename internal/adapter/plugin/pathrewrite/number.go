@@ -1,13 +1,14 @@
 package pathrewrite
 
 import (
-	"strconv"
+	"bytes"
 	"strings"
 )
 
-// decimal は漢数字・算用数字の解析途中の値を、有効数字の文字列と 10 の冪 (scale)、小数点位置 (point) で表す。
+// decimal は漢数字・算用数字の解析途中の値を、有効数字の列と 10 の冪 (scale)、小数点位置 (point) で表す。
+// digits を string にすると 1 桁ごとに全体がコピーされ、長い数字列で解析時間が 2 乗で増える。
 type decimal struct {
-	digits  string
+	digits  []byte
 	scale   int
 	point   int // 小数点が digits の何文字目の前にあるか。なければ -1
 	allZero bool
@@ -15,18 +16,18 @@ type decimal struct {
 
 func newDecimal() decimal { return decimal{point: -1, allZero: true} }
 
-func (d *decimal) isZero() bool { return d.digits == "" }
+func (d *decimal) isZero() bool { return len(d.digits) == 0 }
 
 func (d *decimal) appendDigit(n int) {
 	if n != 0 {
 		d.allZero = false
 	}
-	d.digits += strconv.Itoa(n)
+	d.digits = append(d.digits, byte('0'+n))
 }
 
 func (d *decimal) shiftScale(n int) {
 	if d.isZero() {
-		d.digits = "1"
+		d.digits = append(d.digits, '1')
 	}
 	d.scale += n
 }
@@ -59,7 +60,7 @@ func (d *decimal) add(o decimal) bool {
 		return true
 	}
 	if d.isZero() {
-		d.digits += o.digits
+		d.digits = append(d.digits, o.digits...)
 		d.scale, d.point = o.scale, o.point
 		return true
 	}
@@ -68,11 +69,11 @@ func (d *decimal) add(o decimal) bool {
 	if d.scale < l {
 		return false
 	}
-	d.digits += strings.Repeat("0", d.scale-l)
+	d.digits = append(d.digits, bytes.Repeat([]byte{'0'}, d.scale-l)...)
 	if o.point >= 0 {
 		d.point = len(d.digits) + o.point
 	}
-	d.digits += o.digits
+	d.digits = append(d.digits, o.digits...)
 	d.scale = o.scale
 	return true
 }
@@ -91,12 +92,12 @@ func (d decimal) String() string {
 	}
 	d.normalizeScale()
 	if d.scale > 0 {
-		return d.digits + strings.Repeat("0", d.scale)
+		return string(d.digits) + strings.Repeat("0", d.scale)
 	}
 	if d.point < 0 {
-		return d.digits
+		return string(d.digits)
 	}
-	s := d.digits[:d.point] + "." + d.digits[d.point:]
+	s := string(d.digits[:d.point]) + "." + string(d.digits[d.point:])
 	if d.point == 0 {
 		s = "0" + s
 	}
