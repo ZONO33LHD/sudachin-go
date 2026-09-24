@@ -89,7 +89,8 @@ func (r refJoinKatakana) Rewrite(t *text.Text, path []tokenize.PathNode) ([]toke
 	path = slices.Clone(path)
 	for i := 0; i < len(path); i++ {
 		n := path[i]
-		if !(n.WordID.IsOOV() || n.End-n.Begin < r.k.minLength) || !isKatakana(n) {
+		trigger := n.WordID.IsOOV() || n.End-n.Begin < r.k.minLength
+		if !trigger || !isKatakana(n) {
 			continue
 		}
 		begin := i

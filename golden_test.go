@@ -39,7 +39,11 @@ func readGolden(t *testing.T, name string) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	zr, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +101,11 @@ func BenchmarkAnalyzeBocchan(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			b.Error(err)
+		}
+	}()
 	var lines []string
 	for sc := bufio.NewScanner(f); sc.Scan(); {
 		lines = append(lines, sc.Text())

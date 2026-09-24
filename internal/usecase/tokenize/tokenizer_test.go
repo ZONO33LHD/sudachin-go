@@ -162,7 +162,7 @@ func TestTokenizeConcurrently(t *testing.T) {
 
 // FuzzTokenize はどんな入力でも panic せず、表層形を連結すると入力に戻ることを確かめる。
 func FuzzTokenize(f *testing.F) {
-	for _, s := range []string{"東京都に行った", "ＡＢＣｶﾞｲﾄﾞ１，２３４．５", "すごーーーい", "á‍👍🏻", "漢字（かんじ）"} {
+	for _, s := range []string{"東京都に行った", "ＡＢＣｶﾞｲﾄﾞ１，２３４．５", "すごーーーい", "a\u0301\u200d\U0001F44D\U0001F3FB", "漢字（かんじ）"} {
 		f.Add(s)
 	}
 	tk := newTestTokenizer(f)
