@@ -12,6 +12,7 @@ package sudachin
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/ZONO33LHD/sudachin-go/internal/adapter/plugin/inputtext"
 	"github.com/ZONO33LHD/sudachin-go/internal/adapter/plugin/oov"
@@ -43,10 +44,14 @@ const (
 // ParseMode は "A" / "B" / "C" を Mode に変換する。
 func ParseMode(s string) (Mode, error) { return morpheme.ParseMode(s) }
 
+// ErrClosed は Close 済みの Analyzer を使ったことを表す。
+var ErrClosed = errors.New("sudachin: analyzer is closed")
+
 // Analyzer は形態素解析器。複数 goroutine から同時に Analyze してよい。
 type Analyzer struct {
 	dict      *dicfile.Dictionary
 	tokenizer *tokenize.Tokenizer
+	closed    atomic.Bool
 }
 
 type options struct {
@@ -85,17 +90,32 @@ func Open(dictPath string, opts ...Option) (*Analyzer, error) {
 	return &Analyzer{dict: dict, tokenizer: tk}, nil
 }
 
-// Close は辞書を解放する。Close 後に Analyze してはならない。
-func (a *Analyzer) Close() error { return a.dict.Close() }
+// Close は辞書を解放する。Close 以降の Analyze は ErrClosed を返す。
+// 辞書は mmap した領域を直接参照しているため、実行中の Analyze と同時に Close してはならない。
+func (a *Analyzer) Close() error {
+	if a.closed.Swap(true) {
+		return nil
+	}
+	return a.dict.Close()
+}
 
 // Analyze は s を形態素に分割する。
 func (a *Analyzer) Analyze(s string, mode Mode) ([]Morpheme, error) {
+	if a.closed.Load() {
+		return nil, ErrClosed
+	}
 	return a.tokenizer.Tokenize(s, mode)
 }
 
 // posIDLookup は品詞から品詞 ID を引く。
 type posIDLookup interface {
 	POSID(p word.POS) (uint16, bool)
+}
+
+// dictionaryInfo は未知語の設定が辞書と矛盾しないかを確かめるのに使う。
+type dictionaryInfo interface {
+	posIDLookup
+	CheckParam(p word.Param) error
 }
 
 func lookupPOS(g posIDLookup, parts ...string) (uint16, error) {
@@ -127,6 +147,10 @@ func newTokenizer(dict *dicfile.Dictionary, o options) (*tokenize.Tokenizer, err
 	if err != nil {
 		return nil, err
 	}
+	simpleParam := word.Param{LeftID: 5968, RightID: 5968, Cost: 3857}
+	if err := dict.CheckParam(simpleParam); err != nil {
+		return nil, fmt.Errorf("simple OOV: %w", err)
+	}
 
 	cfg := tokenize.Config{
 		Lexicon:     dict,
@@ -142,7 +166,7 @@ func newTokenizer(dict *dicfile.Dictionary, o options) (*tokenize.Tokenizer, err
 		},
 		OOV: []tokenize.OOVProvider{
 			mecab,
-			oov.NewSimple(oov.Candidate{Param: word.Param{LeftID: 5968, RightID: 5968, Cost: 3857}, POSID: symbolPOS}),
+			oov.NewSimple(oov.Candidate{Param: simpleParam, POSID: symbolPOS}),
 		},
 	}
 	if o.joinNumeric {
@@ -162,7 +186,7 @@ func newTokenizer(dict *dicfile.Dictionary, o options) (*tokenize.Tokenizer, err
 	return tokenize.New(cfg)
 }
 
-func newMeCabOOV(dict posIDLookup, table *chars.Table) (*oov.MeCab, error) {
+func newMeCabOOV(dict dictionaryInfo, table *chars.Table) (*oov.MeCab, error) {
 	defs, err := resource.DefaultUnkDef()
 	if err != nil {
 		return nil, err
@@ -172,6 +196,9 @@ func newMeCabOOV(dict posIDLookup, table *chars.Table) (*oov.MeCab, error) {
 		id, ok := dict.POSID(d.POS)
 		if !ok {
 			return nil, fmt.Errorf("unk.def: part of speech %s is not in the dictionary", d.POS)
+		}
+		if err := dict.CheckParam(d.Param); err != nil {
+			return nil, fmt.Errorf("unk.def: %s: %w", d.POS, err)
 		}
 		cands[d.Category] = append(cands[d.Category], oov.Candidate{Param: d.Param, POSID: id})
 	}

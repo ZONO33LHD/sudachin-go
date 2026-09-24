@@ -32,10 +32,11 @@ type Dictionary struct {
 	data    []byte
 	release func() error
 
-	posList []word.POS
-	posIDs  map[word.POS]uint16
-	matrix  []byte
-	numLeft int
+	posList  []word.POS
+	posIDs   map[word.POS]uint16
+	matrix   []byte
+	numLeft  int
+	numRight int
 
 	trie         []byte // uint32 の配列
 	wordIDTable  []byte
@@ -127,8 +128,8 @@ func (d *Dictionary) parseGrammar(r *reader) error {
 		}
 	}
 	d.numLeft = int(r.u16())
-	numRight := int(r.u16())
-	d.matrix = r.take(2 * d.numLeft * numRight)
+	d.numRight = int(r.u16())
+	d.matrix = r.take(2 * d.numLeft * d.numRight)
 	return r.err
 }
 
@@ -145,6 +146,15 @@ func (d *Dictionary) parseLexicon(r *reader) error {
 	}
 	if trieSize == 0 {
 		return fmt.Errorf("trie is empty")
+	}
+	return nil
+}
+
+// CheckParam は p の文脈 ID がこの辞書の連接コスト表の範囲内かを確かめる。
+// 範囲外の ID は ConnectCost で 0 として扱われ、誤りに気づけないため、設定を組み立てる時点で弾く。
+func (d *Dictionary) CheckParam(p word.Param) error {
+	if int(p.LeftID) >= d.numLeft || int(p.RightID) >= d.numRight {
+		return fmt.Errorf("context id (left %d, right %d) is out of the connection matrix (%d x %d)", p.LeftID, p.RightID, d.numLeft, d.numRight)
 	}
 	return nil
 }

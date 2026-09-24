@@ -130,3 +130,14 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+func TestCheckParam(t *testing.T) {
+	t.Parallel()
+	d := openTestDict(t)
+	if err := d.CheckParam(word.Param{LeftID: 8, RightID: 8}); err != nil {
+		t.Errorf("CheckParam(8, 8) = %v, want nil", err)
+	}
+	if err := d.CheckParam(word.Param{LeftID: 5968, RightID: 5968}); err == nil {
+		t.Error("CheckParam(5968, 5968) should fail for the small test dictionary")
+	}
+}
