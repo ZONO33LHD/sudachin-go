@@ -1,6 +1,9 @@
 package pathrewrite
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNumberParser(t *testing.T) {
 	t.Parallel()
@@ -50,5 +53,22 @@ func TestNumberParser(t *testing.T) {
 				t.Errorf("parse(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+// 長い数字列でも 1 桁ごとに数字列全体をコピーしないこと (以前は 80 万桁で 17 秒かかった)。
+func TestNumberParserLongInputAllocations(t *testing.T) {
+	digits := strings.Repeat("1", 100_000)
+	allocs := testing.AllocsPerRun(3, func() {
+		p := newNumberParser()
+		for _, c := range digits {
+			p.append(c)
+		}
+		if !p.done() || p.normalized() != digits {
+			t.Fatal("failed to parse a long digit string")
+		}
+	})
+	if allocs > 200 {
+		t.Errorf("parsing 100,000 digits allocated %.0f times; digits are probably copied per append", allocs)
 	}
 }
